@@ -219,9 +219,11 @@ class Grid {
     }
 }
 
-// 导出到window对象
-window.Heuristic = Heuristic;
-window.Util = Util;
-window.Heap = Heap;
-window.Node = Node;
-window.Grid = Grid; 
+// 导出模块
+module.exports = {
+    Heuristic,
+    Util,
+    Heap,
+    Node,
+    Grid
+}; 

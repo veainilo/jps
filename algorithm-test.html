@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>寻路算法性能测试</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        #results {
+            white-space: pre;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .progress {
+            margin: 20px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="progress" id="progress">准备开始测试...</div>
+    <div id="results"></div>
+
+    <script src="pathfinding-common.js"></script>
+    <script src="jps.js"></script>
+    <script src="jps-variants.js"></script>
+    <script src="pathfinding-finders.js"></script>
+    <script>
+        /**
+         * 寻路算法性能比较测试
+         */
+        class AlgorithmTester {
+            constructor() {
+                this.algorithms = [
+                    { name: 'JPS', class: window.JumpPointFinder },
+                    { name: 'JPS (无障碍对角)', class: window.JPFMoveDiagonallyIfNoObstacles },
+                    { name: 'A*', class: window.AStarFinder },
+                    { name: 'Dijkstra', class: window.DijkstraFinder },
+                    { name: 'BFS', class: window.BreadthFirstFinder },
+                    { name: 'Best-First', class: window.BestFirstFinder }
+                ];
+
+                this.mapSizes = [
+                    { width: 50, height: 50 },
+                    { width: 100, height: 100 },
+                    { width: 200, height: 200 }
+                ];
+
+                this.obstacleDensities = [0.1, 0.2, 0.3, 0.4];
+                this.testsPerConfig = 50;
+                
+                this.results = document.getElementById('results');
+                this.progress = document.getElementById('progress');
+            }
+
+            log(message) {
+                this.results.textContent += message + '\n';
+                this.results.scrollTop = this.results.scrollHeight;
+            }
+
+            updateProgress(message) {
+                this.progress.textContent = message;
+            }
+
+            // 生成随机地图
+            generateMap(width, height, obstacleRatio) {
+                const matrix = Array(height).fill().map(() => Array(width).fill(0));
+                for (let y = 0; y < height; y++) {
+                    for (let x = 0; x < width; x++) {
+                        if (Math.random() < obstacleRatio) {
+                            matrix[y][x] = 1;
+                        }
+                    }
+                }
+                // 确保起点和终点可用
+                matrix[0][0] = 0;
+                matrix[height-1][width-1] = 0;
+                return new window.Grid(width, height, matrix);
+            }
+
+            // 验证路径
+            validatePath(path, grid) {
+                if (!path || path.length === 0) return false;
+                
+                const [startX, startY] = path[0];
+                const [endX, endY] = path[path.length - 1];
+                
+                // 检查起点和终点
+                if (!grid.isWalkableAt(startX, startY) || !grid.isWalkableAt(endX, endY)) {
+                    return false;
+                }
+
+                // 检查路径连续性
+                for (let i = 0; i < path.length - 1; i++) {
+                    const [x1, y1] = path[i];
+                    const [x2, y2] = path[i + 1];
+                    
+                    const dx = Math.abs(x2 - x1);
+                    const dy = Math.abs(y2 - y1);
+                    
+                    // 检查移动是否有效（包括对角线）
+                    if (dx > 1 || dy > 1) {
+                        return false;
+                    }
+                    
+                    // 对于对角移动，检查两个相邻的格子
+                    if (dx === 1 && dy === 1) {
+                        if (!grid.isWalkableAt(x1, y2) || !grid.isWalkableAt(x2, y1)) {
+                            return false;
+                        }
+                    }
+                    
+                    if (!grid.isWalkableAt(x2, y2)) {
+                        return false;
+                    }
+                }
+                
+                return true;
+            }
+
+            // 运行单次测试
+            runSingleTest(finder, grid) {
+                const startTime = performance.now();
+                const path = finder.findPath(0, 0, grid.width-1, grid.height-1, grid);
+                const endTime = performance.now();
+                const duration = endTime - startTime;
+
+                return {
+                    pathFound: path.length > 0,
+                    pathLength: path.length,
+                    duration: duration,
+                    nodesVisited: finder.visitedNodes.size,
+                    isValidPath: this.validatePath(path, grid)
+                };
+            }
+
+            // 运行完整测试套件
+            async runTests() {
+                this.log('开始算法性能比较测试...\n');
+                const results = {};
+
+                for (const size of this.mapSizes) {
+                    this.log(`\n地图大小: ${size.width}x${size.height}`);
+                    
+                    for (const density of this.obstacleDensities) {
+                        this.log(`\n障碍物密度: ${(density * 100).toFixed(1)}%`);
+                        
+                        const testResults = {};
+                        for (const algo of this.algorithms) {
+                            testResults[algo.name] = {
+                                totalTests: 0,
+                                successfulTests: 0,
+                                validPaths: 0,
+                                totalTime: 0,
+                                totalNodes: 0,
+                                totalLength: 0,
+                                maxTime: 0,
+                                minTime: Infinity
+                            };
+                        }
+
+                        // 运行多次测试
+                        for (let i = 0; i < this.testsPerConfig; i++) {
+                            const grid = this.generateMap(size.width, size.height, density);
+                            
+                            for (const algo of this.algorithms) {
+                                const finder = new algo.class();
+                                const result = this.runSingleTest(finder, grid);
+                                
+                                const stats = testResults[algo.name];
+                                stats.totalTests++;
+                                
+                                if (result.pathFound) {
+                                    stats.successfulTests++;
+                                    if (result.isValidPath) {
+                                        stats.validPaths++;
+                                        stats.totalTime += result.duration;
+                                        stats.totalNodes += result.nodesVisited;
+                                        stats.totalLength += result.pathLength;
+                                        stats.maxTime = Math.max(stats.maxTime, result.duration);
+                                        stats.minTime = Math.min(stats.minTime, result.duration);
+                                    }
+                                }
+                            }
+
+                            // 显示进度
+                            if ((i + 1) % 10 === 0) {
+                                this.updateProgress(`完成 ${i + 1}/${this.testsPerConfig} 次测试`);
+                                // 给UI一个更新的机会
+                                await new Promise(resolve => setTimeout(resolve, 0));
+                            }
+                        }
+
+                        // 计算和显示结果
+                        this.log('\n测试结果:');
+                        for (const algo of this.algorithms) {
+                            const stats = testResults[algo.name];
+                            const validTests = stats.validPaths;
+                            
+                            if (validTests > 0) {
+                                this.log(`\n${algo.name}:`);
+                                this.log(`成功率: ${(stats.successfulTests / stats.totalTests * 100).toFixed(1)}%`);
+                                this.log(`有效路径率: ${(stats.validPaths / stats.totalTests * 100).toFixed(1)}%`);
+                                this.log(`平均执行时间: ${(stats.totalTime / validTests).toFixed(2)}ms`);
+                                this.log(`最短执行时间: ${stats.minTime.toFixed(2)}ms`);
+                                this.log(`最长执行时间: ${stats.maxTime.toFixed(2)}ms`);
+                                this.log(`平均访问节点数: ${Math.round(stats.totalNodes / validTests)}`);
+                                this.log(`平均路径长度: ${(stats.totalLength / validTests).toFixed(1)}`);
+                            } else {
+                                this.log(`\n${algo.name}: 没有找到有效路径`);
+                            }
+                        }
+
+                        // 存储结果
+                        const key = `${size.width}x${size.height}_${(density * 100).toFixed(0)}`;
+                        results[key] = testResults;
+                    }
+                }
+
+                return results;
+            }
+        }
+
+        // 运行测试
+        window.onload = () => {
+            console.log('正在初始化测试...');
+            const tester = new AlgorithmTester();
+            tester.runTests().then(() => {
+                tester.updateProgress('所有测试完成！');
+                console.log('所有测试完成！');
+            });
+        };
+    </script>
+</body>
+</html> 

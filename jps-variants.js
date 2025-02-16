@@ -1,3 +1,5 @@
+const { Heuristic, Util, Heap } = require('./pathfinding-common.js');
+
 /**
  * JPS算法变体集合
  */
@@ -5,13 +7,13 @@
 // 基础JPS类
 class JumpPointFinderBase {
     constructor(opt = {}) {
-        this.heuristic = opt.heuristic || window.Heuristic.octile;
+        this.heuristic = opt.heuristic || Heuristic.octile;
         this.trackJumpRecursion = opt.trackJumpRecursion || false;
         this.visitedNodes = new Set();
     }
 
     findPath(startX, startY, endX, endY, grid) {
-        const openList = this.openList = new window.Heap((nodeA, nodeB) => nodeA.f - nodeB.f);
+        const openList = this.openList = new Heap((nodeA, nodeB) => nodeA.f - nodeB.f);
         const startNode = this.startNode = grid.getNodeAt(startX, startY);
         const endNode = this.endNode = grid.getNodeAt(endX, endY);
         this.grid = grid;
@@ -41,7 +43,7 @@ class JumpPointFinderBase {
             this.visitedNodes.add(node.x + ',' + node.y);
 
             if (node === endNode) {
-                return window.Util.expandPath(window.Util.backtrace(endNode));
+                return Util.expandPath(Util.backtrace(endNode));
             }
 
             this._identifySuccessors(node);
@@ -243,5 +245,5 @@ class JPFMoveDiagonallyIfNoObstacles extends JumpPointFinderBase {
     }
 }
 
-// 导出到window对象
-window.JPFMoveDiagonallyIfNoObstacles = JPFMoveDiagonallyIfNoObstacles; 
+// 导出模块
+module.exports = { JPFMoveDiagonallyIfNoObstacles }; 
