@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>寻路算法可视化</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        .container {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .canvas-container {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        canvas {
+            border: 1px solid #ccc;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        .stats {
+            margin-top: 10px;
+            font-size: 14px;
+        }
+        label {
+            margin-right: 10px;
+        }
+        select, input {
+            margin-right: 20px;
+            padding: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <div>
+            <label>地图大小:</label>
+            <select id="mapSize">
+                <option value="50">50x50</option>
+                <option value="100">100x100</option>
+                <option value="200">200x200</option>
+            </select>
+
+            <label>障碍物密度:</label>
+            <input type="range" id="obstacleRatio" min="0" max="40" value="20" step="5">
+            <span id="ratioValue">20%</span>
+
+            <button id="generateMap">生成新地图</button>
+            <button id="findPath">寻找路径</button>
+            <button id="clearPath">清除路径</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="canvas-container">
+            <h3>JPS算法</h3>
+            <canvas id="jpsCanvas"></canvas>
+            <div class="stats" id="jpsStats"></div>
+        </div>
+        <div class="canvas-container">
+            <h3>A*算法</h3>
+            <canvas id="astarCanvas"></canvas>
+            <div class="stats" id="astarStats"></div>
+        </div>
+    </div>
+
+    <script src="pathfinding-common.js"></script>
+    <script src="jps.js"></script>
+    <script src="astar.js"></script>
+    <script>
+        const jpsCanvas = document.getElementById('jpsCanvas');
+        const astarCanvas = document.getElementById('astarCanvas');
+        const jpsCtx = jpsCanvas.getContext('2d');
+        const astarCtx = astarCanvas.getContext('2d');
+        
+        let currentGrid = null;
+        let cellSize = 0;
+        
+        // 更新画布大小
+        function updateCanvasSize() {
+            const size = parseInt(document.getElementById('mapSize').value);
+            const maxCanvasSize = 600;
+            cellSize = Math.floor(maxCanvasSize / size);
+            
+            const actualSize = size * cellSize;
+            jpsCanvas.width = astarCanvas.width = actualSize;
+            jpsCanvas.height = astarCanvas.height = actualSize;
+        }
+
+        // 生成地图
+        function generateMap() {
+            const size = parseInt(document.getElementById('mapSize').value);
+            const ratio = parseInt(document.getElementById('obstacleRatio').value) / 100;
+            
+            // 生成随机地图
+            const matrix = Array(size).fill().map(() => Array(size).fill(0));
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    if (Math.random() < ratio) {
+                        matrix[y][x] = 1;
+                    }
+                }
+            }
+            
+            // 确保起点和终点可用
+            matrix[0][0] = 0;
+            matrix[size-1][size-1] = 0;
+            
+            currentGrid = new Grid(size, size, matrix);
+            drawGrid(jpsCtx, matrix);
+            drawGrid(astarCtx, matrix);
+        }
+
+        // 绘制地图
+        function drawGrid(ctx, matrix) {
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            
+            // 绘制单元格
+            for (let y = 0; y < matrix.length; y++) {
+                for (let x = 0; x < matrix[y].length; x++) {
+                    ctx.fillStyle = matrix[y][x] === 1 ? '#666' : '#fff';
+                    ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                    ctx.strokeStyle = '#ccc';
+                    ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
+                }
+            }
+
+            // 标记起点和终点
+            ctx.fillStyle = '#4CAF50';
+            ctx.fillRect(0, 0, cellSize, cellSize);
+            ctx.fillStyle = '#f44336';
+            ctx.fillRect((matrix.length-1) * cellSize, (matrix.length-1) * cellSize, cellSize, cellSize);
+        }
+
+        // 绘制路径
+        function drawPath(ctx, path, visitedNodes, color = '#2196F3') {
+            // 绘制访问过的节点
+            ctx.fillStyle = 'rgba(255, 235, 59, 0.3)';
+            for (const node of visitedNodes) {
+                const [x, y] = node.split(',').map(Number);
+                ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
+            }
+
+            // 绘制路径
+            if (path && path.length > 0) {
+                ctx.beginPath();
+                ctx.moveTo(path[0][0] * cellSize + cellSize/2, path[0][1] * cellSize + cellSize/2);
+                
+                for (let i = 1; i < path.length; i++) {
+                    ctx.lineTo(path[i][0] * cellSize + cellSize/2, path[i][1] * cellSize + cellSize/2);
+                }
+
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        // 寻找路径
+        function findPath() {
+            if (!currentGrid) return;
+
+            const size = currentGrid.width;
+            
+            // 清除之前的路径
+            drawGrid(jpsCtx, currentGrid.nodes.map(row => row.map(node => node.walkable ? 0 : 1)));
+            drawGrid(astarCtx, currentGrid.nodes.map(row => row.map(node => node.walkable ? 0 : 1)));
+
+            // JPS寻路
+            const jps = new JumpPointFinder();
+            const jpsStartTime = performance.now();
+            const jpsPath = jps.findPath(0, 0, size-1, size-1, currentGrid);
+            const jpsDuration = performance.now() - jpsStartTime;
+
+            // A*寻路
+            const astar = new AStarFinder();
+            const astarStartTime = performance.now();
+            const astarPath = astar.findPath(0, 0, size-1, size-1, currentGrid);
+            const astarDuration = performance.now() - astarStartTime;
+
+            // 绘制路径
+            drawPath(jpsCtx, jpsPath, jps.visitedNodes);
+            drawPath(astarCtx, astarPath, astar.visitedNodes);
+
+            // 更新统计信息
+            document.getElementById('jpsStats').innerHTML = `
+                执行时间: ${jpsDuration.toFixed(2)}ms<br>
+                路径长度: ${jpsPath.length}<br>
+                访问节点数: ${jps.visitedNodes.size}
+            `;
+            document.getElementById('astarStats').innerHTML = `
+                执行时间: ${astarDuration.toFixed(2)}ms<br>
+                路径长度: ${astarPath.length}<br>
+                访问节点数: ${astar.visitedNodes.size}
+            `;
+        }
+
+        // 事件监听
+        document.getElementById('generateMap').addEventListener('click', () => {
+            updateCanvasSize();
+            generateMap();
+        });
+
+        document.getElementById('findPath').addEventListener('click', findPath);
+        
+        document.getElementById('clearPath').addEventListener('click', () => {
+            if (currentGrid) {
+                drawGrid(jpsCtx, currentGrid.nodes.map(row => row.map(node => node.walkable ? 0 : 1)));
+                drawGrid(astarCtx, currentGrid.nodes.map(row => row.map(node => node.walkable ? 0 : 1)));
+                document.getElementById('jpsStats').innerHTML = '';
+                document.getElementById('astarStats').innerHTML = '';
+            }
+        });
+
+        document.getElementById('obstacleRatio').addEventListener('input', (e) => {
+            document.getElementById('ratioValue').textContent = e.target.value + '%';
+        });
+
+        // 初始化
+        updateCanvasSize();
+        generateMap();
+    </script>
+</body>
+</html> 
+ 

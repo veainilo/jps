@@ -2,11 +2,9 @@
  * A* 寻路算法实现
  */
 
-const { Grid, Node, Heuristic, Util } = require('./jps');
-
 class AStarFinder {
     constructor(opt = {}) {
-        this.heuristic = opt.heuristic || Heuristic.octile;
+        this.heuristic = opt.heuristic || window.Heuristic.octile;
         this.diagonalMovement = opt.diagonalMovement !== false;
         this.weight = opt.weight || 1;
         this.visitedNodes = new Set();
@@ -45,7 +43,7 @@ class AStarFinder {
             
             // 如果找到终点，返回路径
             if (currentNode === endNode) {
-                return Util.backtrace(endNode);
+                return window.Util.backtrace(endNode);
             }
 
             // 将当前节点从开放列表移到关闭列表
@@ -156,6 +154,5 @@ class AStarFinder {
     }
 }
 
-module.exports = {
-    AStarFinder
-}; 
+// 改用window对象导出
+window.AStarFinder = AStarFinder; 
