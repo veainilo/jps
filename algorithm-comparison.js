@@ -13,10 +13,10 @@ class AlgorithmTester {
         this.algorithms = [
             { name: 'JPS', class: JumpPointFinder },
             { name: 'JPS (无障碍对角)', class: JPFMoveDiagonallyIfNoObstacles },
-            { name: 'A*', class: AStarFinder },
-            { name: 'Dijkstra', class: DijkstraFinder },
-            { name: 'BFS', class: BreadthFirstFinder },
-            { name: 'Best-First', class: BestFirstFinder }
+            // { name: 'A*', class: AStarFinder },
+            // { name: 'Dijkstra', class: DijkstraFinder },
+            // { name: 'BFS', class: BreadthFirstFinder },
+            // { name: 'Best-First', class: BestFirstFinder }
         ];
 
         this.mapSizes = [
@@ -135,8 +135,10 @@ class AlgorithmTester {
 
                 // 运行多次测试
                 for (let i = 0; i < this.testsPerConfig; i++) {
+                    // 为每次测试生成一个地图，所有算法共用这个地图
                     const grid = this.generateMap(size.width, size.height, density);
                     
+                    // 在同一个地图上测试所有算法
                     for (const algo of this.algorithms) {
                         const finder = new algo.class();
                         const result = this.runSingleTest(finder, grid);
