@@ -19,6 +19,8 @@
             padding: 10px;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            flex: 1;
+            min-width: 300px;
         }
         .controls {
             background: white;
@@ -29,6 +31,8 @@
         }
         canvas {
             border: 1px solid #ccc;
+            width: 100%;
+            height: auto;
         }
         button {
             background: #4CAF50;
@@ -53,11 +57,14 @@
             margin-right: 20px;
             padding: 5px;
         }
+        .control-row {
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="controls">
-        <div>
+        <div class="control-row">
             <label>地图大小:</label>
             <select id="mapSize">
                 <option value="50">50x50</option>
@@ -68,7 +75,29 @@
             <label>障碍物密度:</label>
             <input type="range" id="obstacleRatio" min="0" max="40" value="20" step="5">
             <span id="ratioValue">20%</span>
+        </div>
+        <div class="control-row">
+            <label>算法1:</label>
+            <select id="algorithm1">
+                <option value="jps">JPS</option>
+                <option value="jps-no-obstacles">JPS (无障碍对角)</option>
+                <option value="astar">A*</option>
+                <option value="dijkstra">Dijkstra</option>
+                <option value="bfs">广度优先搜索</option>
+                <option value="bestfirst">最佳优先搜索</option>
+            </select>
 
+            <label>算法2:</label>
+            <select id="algorithm2">
+                <option value="astar">A*</option>
+                <option value="jps">JPS</option>
+                <option value="jps-no-obstacles">JPS (无障碍对角)</option>
+                <option value="dijkstra">Dijkstra</option>
+                <option value="bfs">广度优先搜索</option>
+                <option value="bestfirst">最佳优先搜索</option>
+            </select>
+        </div>
+        <div class="control-row">
             <button id="generateMap">生成新地图</button>
             <button id="findPath">寻找路径</button>
             <button id="clearPath">清除路径</button>
@@ -77,38 +106,72 @@
 
     <div class="container">
         <div class="canvas-container">
-            <h3>JPS算法</h3>
-            <canvas id="jpsCanvas"></canvas>
-            <div class="stats" id="jpsStats"></div>
+            <h3>算法1: <span id="algo1Name">JPS</span></h3>
+            <canvas id="canvas1"></canvas>
+            <div class="stats" id="stats1"></div>
         </div>
         <div class="canvas-container">
-            <h3>A*算法</h3>
-            <canvas id="astarCanvas"></canvas>
-            <div class="stats" id="astarStats"></div>
+            <h3>算法2: <span id="algo2Name">A*</span></h3>
+            <canvas id="canvas2"></canvas>
+            <div class="stats" id="stats2"></div>
         </div>
     </div>
 
     <script src="pathfinding-common.js"></script>
     <script src="jps.js"></script>
-    <script src="astar.js"></script>
+    <script src="jps-variants.js"></script>
+    <script src="pathfinding-finders.js"></script>
     <script>
-        const jpsCanvas = document.getElementById('jpsCanvas');
-        const astarCanvas = document.getElementById('astarCanvas');
-        const jpsCtx = jpsCanvas.getContext('2d');
-        const astarCtx = astarCanvas.getContext('2d');
+        const canvas1 = document.getElementById('canvas1');
+        const canvas2 = document.getElementById('canvas2');
+        const ctx1 = canvas1.getContext('2d');
+        const ctx2 = canvas2.getContext('2d');
         
         let currentGrid = null;
         let cellSize = 0;
+
+        // 获取选择的算法实例
+        function getFinderInstance(algorithm) {
+            switch(algorithm) {
+                case 'jps':
+                    return new window.JumpPointFinder();
+                case 'jps-no-obstacles':
+                    return new window.JPFMoveDiagonallyIfNoObstacles();
+                case 'astar':
+                    return new window.AStarFinder();
+                case 'dijkstra':
+                    return new window.DijkstraFinder();
+                case 'bfs':
+                    return new window.BreadthFirstFinder();
+                case 'bestfirst':
+                    return new window.BestFirstFinder();
+                default:
+                    return new window.AStarFinder();
+            }
+        }
+
+        // 获取算法显示名称
+        function getAlgorithmName(algorithm) {
+            switch(algorithm) {
+                case 'jps': return 'JPS';
+                case 'jps-no-obstacles': return 'JPS (无障碍对角)';
+                case 'astar': return 'A*';
+                case 'dijkstra': return 'Dijkstra';
+                case 'bfs': return '广度优先搜索';
+                case 'bestfirst': return '最佳优先搜索';
+                default: return 'Unknown';
+            }
+        }
         
         // 更新画布大小
         function updateCanvasSize() {
             const size = parseInt(document.getElementById('mapSize').value);
-            const maxCanvasSize = 600;
+            const maxCanvasSize = Math.min(window.innerWidth * 0.4, 600);
             cellSize = Math.floor(maxCanvasSize / size);
             
             const actualSize = size * cellSize;
-            jpsCanvas.width = astarCanvas.width = actualSize;
-            jpsCanvas.height = astarCanvas.height = actualSize;
+            canvas1.width = canvas2.width = actualSize;
+            canvas1.height = canvas2.height = actualSize;
         }
 
         // 生成地图
@@ -116,7 +179,6 @@
             const size = parseInt(document.getElementById('mapSize').value);
             const ratio = parseInt(document.getElementById('obstacleRatio').value) / 100;
             
-            // 生成随机地图
             const matrix = Array(size).fill().map(() => Array(size).fill(0));
             for (let y = 0; y < size; y++) {
                 for (let x = 0; x < size; x++) {
@@ -126,20 +188,18 @@
                 }
             }
             
-            // 确保起点和终点可用
             matrix[0][0] = 0;
             matrix[size-1][size-1] = 0;
             
-            currentGrid = new Grid(size, size, matrix);
-            drawGrid(jpsCtx, matrix);
-            drawGrid(astarCtx, matrix);
+            currentGrid = new window.Grid(size, size, matrix);
+            drawGrid(ctx1, matrix);
+            drawGrid(ctx2, matrix);
         }
 
         // 绘制地图
         function drawGrid(ctx, matrix) {
             ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             
-            // 绘制单元格
             for (let y = 0; y < matrix.length; y++) {
                 for (let x = 0; x < matrix[y].length; x++) {
                     ctx.fillStyle = matrix[y][x] === 1 ? '#666' : '#fff';
@@ -149,7 +209,6 @@
                 }
             }
 
-            // 标记起点和终点
             ctx.fillStyle = '#4CAF50';
             ctx.fillRect(0, 0, cellSize, cellSize);
             ctx.fillStyle = '#f44336';
@@ -158,14 +217,12 @@
 
         // 绘制路径
         function drawPath(ctx, path, visitedNodes, color = '#2196F3') {
-            // 绘制访问过的节点
             ctx.fillStyle = 'rgba(255, 235, 59, 0.3)';
             for (const node of visitedNodes) {
                 const [x, y] = node.split(',').map(Number);
                 ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
             }
 
-            // 绘制路径
             if (path && path.length > 0) {
                 ctx.beginPath();
                 ctx.moveTo(path[0][0] * cellSize + cellSize/2, path[0][1] * cellSize + cellSize/2);
@@ -187,35 +244,43 @@
             const size = currentGrid.width;
             
             // 清除之前的路径
-            drawGrid(jpsCtx, currentGrid.nodes.map(row => row.map(node => node.walkable ? 0 : 1)));
-            drawGrid(astarCtx, currentGrid.nodes.map(row => row.map(node => node.walkable ? 0 : 1)));
+            drawGrid(ctx1, currentGrid.nodes.map(row => row.map(node => node.walkable ? 0 : 1)));
+            drawGrid(ctx2, currentGrid.nodes.map(row => row.map(node => node.walkable ? 0 : 1)));
 
-            // JPS寻路
-            const jps = new JumpPointFinder();
-            const jpsStartTime = performance.now();
-            const jpsPath = jps.findPath(0, 0, size-1, size-1, currentGrid);
-            const jpsDuration = performance.now() - jpsStartTime;
+            // 获取选择的算法
+            const algo1 = document.getElementById('algorithm1').value;
+            const algo2 = document.getElementById('algorithm2').value;
+            
+            // 更新算法名称显示
+            document.getElementById('algo1Name').textContent = getAlgorithmName(algo1);
+            document.getElementById('algo2Name').textContent = getAlgorithmName(algo2);
 
-            // A*寻路
-            const astar = new AStarFinder();
-            const astarStartTime = performance.now();
-            const astarPath = astar.findPath(0, 0, size-1, size-1, currentGrid);
-            const astarDuration = performance.now() - astarStartTime;
+            // 运行算法1
+            const finder1 = getFinderInstance(algo1);
+            const startTime1 = performance.now();
+            const path1 = finder1.findPath(0, 0, size-1, size-1, currentGrid);
+            const duration1 = performance.now() - startTime1;
+
+            // 运行算法2
+            const finder2 = getFinderInstance(algo2);
+            const startTime2 = performance.now();
+            const path2 = finder2.findPath(0, 0, size-1, size-1, currentGrid);
+            const duration2 = performance.now() - startTime2;
 
             // 绘制路径
-            drawPath(jpsCtx, jpsPath, jps.visitedNodes);
-            drawPath(astarCtx, astarPath, astar.visitedNodes);
+            drawPath(ctx1, path1, finder1.visitedNodes);
+            drawPath(ctx2, path2, finder2.visitedNodes);
 
             // 更新统计信息
-            document.getElementById('jpsStats').innerHTML = `
-                执行时间: ${jpsDuration.toFixed(2)}ms<br>
-                路径长度: ${jpsPath.length}<br>
-                访问节点数: ${jps.visitedNodes.size}
+            document.getElementById('stats1').innerHTML = `
+                执行时间: ${duration1.toFixed(2)}ms<br>
+                路径长度: ${path1.length}<br>
+                访问节点数: ${finder1.visitedNodes.size}
             `;
-            document.getElementById('astarStats').innerHTML = `
-                执行时间: ${astarDuration.toFixed(2)}ms<br>
-                路径长度: ${astarPath.length}<br>
-                访问节点数: ${astar.visitedNodes.size}
+            document.getElementById('stats2').innerHTML = `
+                执行时间: ${duration2.toFixed(2)}ms<br>
+                路径长度: ${path2.length}<br>
+                访问节点数: ${finder2.visitedNodes.size}
             `;
         }
 
@@ -229,10 +294,10 @@
         
         document.getElementById('clearPath').addEventListener('click', () => {
             if (currentGrid) {
-                drawGrid(jpsCtx, currentGrid.nodes.map(row => row.map(node => node.walkable ? 0 : 1)));
-                drawGrid(astarCtx, currentGrid.nodes.map(row => row.map(node => node.walkable ? 0 : 1)));
-                document.getElementById('jpsStats').innerHTML = '';
-                document.getElementById('astarStats').innerHTML = '';
+                drawGrid(ctx1, currentGrid.nodes.map(row => row.map(node => node.walkable ? 0 : 1)));
+                drawGrid(ctx2, currentGrid.nodes.map(row => row.map(node => node.walkable ? 0 : 1)));
+                document.getElementById('stats1').innerHTML = '';
+                document.getElementById('stats2').innerHTML = '';
             }
         });
 
@@ -243,6 +308,15 @@
         // 初始化
         updateCanvasSize();
         generateMap();
+
+        // 窗口大小改变时更新画布
+        window.addEventListener('resize', () => {
+            if (currentGrid) {
+                updateCanvasSize();
+                drawGrid(ctx1, currentGrid.nodes.map(row => row.map(node => node.walkable ? 0 : 1)));
+                drawGrid(ctx2, currentGrid.nodes.map(row => row.map(node => node.walkable ? 0 : 1)));
+            }
+        });
     </script>
 </body>
 </html> 
