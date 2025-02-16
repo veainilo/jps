@@ -12,11 +12,11 @@ class JumpPointFinder {
     }
 
     findPath(startX, startY, endX, endY, grid) {
-        const openList = this.openList = new Heap((nodeA, nodeB) => nodeA.f - nodeB.f);
-        const startNode = this.startNode = grid.getNodeAt(startX, startY);
-        const endNode = this.endNode = grid.getNodeAt(endX, endY);
-        this.grid = grid;
+        this.openList = new Heap((nodeA, nodeB) => nodeA.f - nodeB.f);
         this.visitedNodes.clear();
+        this.grid = grid;
+        this.startNode = grid.getNodeAt(startX, startY);
+        this.endNode = grid.getNodeAt(endX, endY);
 
         // 重置节点状态
         for (let y = 0; y < grid.height; y++) {
@@ -31,18 +31,18 @@ class JumpPointFinder {
             }
         }
 
-        startNode.g = 0;
-        startNode.f = 0;
-        openList.push(startNode);
-        startNode.opened = true;
+        this.startNode.g = 0;
+        this.startNode.f = 0;
+        this.openList.push(this.startNode);
+        this.startNode.opened = true;
 
-        while (!openList.empty()) {
-            const node = openList.pop();
+        while (!this.openList.empty()) {
+            const node = this.openList.pop();
             node.closed = true;
             this.visitedNodes.add(node.x + ',' + node.y);
 
-            if (node === endNode) {
-                return Util.expandPath(Util.backtrace(endNode));
+            if (node === this.endNode) {
+                return Util.expandPath(Util.backtrace(this.endNode));
             }
 
             this._identifySuccessors(node);

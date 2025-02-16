@@ -55,14 +55,14 @@ class AStarFinder {
         while (openList.size > 0) {
             // 检查性能限制
             if (this.visitedNodes.size >= this.maxVisitedNodes) {
-                console.log('A*: 达到最大访问节点数限制');
+                // console.log('A*: 达到最大访问节点数限制');
                 return this._getBestPath(bestNode);
             }
 
             const currentTime = process.hrtime.bigint();
             const elapsedMs = Number(currentTime - startTime) / 1_000_000;
             if (elapsedMs > this.maxSearchTime) {
-                console.log('A*: 达到最大搜索时间限制');
+                // console.log('A*: 达到最大搜索时间限制');
                 return this._getBestPath(bestNode);
             }
 
@@ -80,7 +80,7 @@ class AStarFinder {
 
             // 如果长时间没有找到更好的节点，提前结束
             if (noProgressCounter >= maxNoProgress) {
-                console.log('A*: 搜索无进展，提前终止');
+                // console.log('A*: 搜索无进展，提前终止');
                 return this._getBestPath(bestNode);
             }
             
@@ -237,14 +237,14 @@ class BreadthFirstFinder {
         while (queue.length > 0) {
             // 检查性能限制
             if (this.visitedNodes.size >= this.maxVisitedNodes) {
-                console.log('BFS: 达到最大访问节点数限制');
+                // console.log('BFS: 达到最大访问节点数限制');
                 return [];
             }
 
             const currentTime = process.hrtime.bigint();
             const elapsedMs = Number(currentTime - startTime) / 1_000_000;
             if (elapsedMs > this.maxSearchTime) {
-                console.log('BFS: 达到最大搜索时间限制');
+                // console.log('BFS: 达到最大搜索时间限制');
                 return [];
             }
 

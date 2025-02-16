@@ -1,10 +1,12 @@
+const { Heuristic, Util } = require('./pathfinding-common.js');
+
 /**
  * A* 寻路算法实现
  */
 
 class AStarFinder {
     constructor(opt = {}) {
-        this.heuristic = opt.heuristic || window.Heuristic.octile;
+        this.heuristic = opt.heuristic || Heuristic.octile;
         this.diagonalMovement = opt.diagonalMovement !== false;
         this.weight = opt.weight || 1;
         this.visitedNodes = new Set();
@@ -43,7 +45,7 @@ class AStarFinder {
             
             // 如果找到终点，返回路径
             if (currentNode === endNode) {
-                return window.Util.backtrace(endNode);
+                return Util.backtrace(endNode);
             }
 
             // 将当前节点从开放列表移到关闭列表
@@ -154,5 +156,5 @@ class AStarFinder {
     }
 }
 
-// 改用window对象导出
-window.AStarFinder = AStarFinder; 
+// 导出模块
+module.exports = AStarFinder; 

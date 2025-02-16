@@ -20,9 +20,9 @@ class AlgorithmTester {
         ];
 
         this.mapSizes = [
-            { width: 50, height: 50 },
             { width: 100, height: 100 },
-            { width: 200, height: 200 }
+            { width: 200, height: 200 },
+            { width: 400, height: 400 }
         ];
 
         this.obstacleDensities = [0.1, 0.2, 0.3, 0.4];
@@ -87,17 +87,24 @@ class AlgorithmTester {
 
     // 运行单次测试
     runSingleTest(finder, grid) {
+        // 重置访问节点集合
+        finder.visitedNodes.clear();
+        
+        // 只测量 findPath 的执行时间
         const startTime = process.hrtime.bigint();
         const path = finder.findPath(0, 0, grid.width-1, grid.height-1, grid);
         const endTime = process.hrtime.bigint();
         const duration = Number(endTime - startTime) / 1_000_000; // 转换为毫秒
 
+        // 其他统计信息的计算放在计时之外
+        const isValidPath = this.validatePath(path, grid);
+        
         return {
             pathFound: path.length > 0,
             pathLength: path.length,
             duration: duration,
             nodesVisited: finder.visitedNodes.size,
-            isValidPath: this.validatePath(path, grid)
+            isValidPath: isValidPath
         };
     }
 
