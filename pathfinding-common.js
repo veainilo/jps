@@ -219,11 +219,9 @@ class Grid {
     }
 }
 
-// 导出模块
-module.exports = {
-    Heuristic,
-    Util,
-    Heap,
-    Node,
-    Grid
-}; 
+// 改为全局变量
+window.Heuristic = Heuristic;
+window.Util = Util;
+window.Heap = Heap;
+window.Node = Node;
+window.Grid = Grid;

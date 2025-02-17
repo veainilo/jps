@@ -1,5 +1,3 @@
-const { Heuristic, Util, Heap } = require('./pathfinding-common.js');
-
 /**
  * JPS算法变体集合
  */
@@ -245,7 +243,5 @@ class JPFMoveDiagonallyIfNoObstacles extends JumpPointFinderBase {
     }
 }
 
-// 导出模块
-module.exports = {
-    JPFMoveDiagonallyIfNoObstacles
-}; 
+// 添加到全局对象
+window.JPFMoveDiagonallyIfNoObstacles = JPFMoveDiagonallyIfNoObstacles;

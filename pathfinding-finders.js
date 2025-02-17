@@ -2,8 +2,6 @@
  * 寻路算法集合
  */
 
-const { Heuristic, Util } = require('./pathfinding-common.js');
-
 // A*算法
 class AStarFinder {
     constructor(opt = {}) {
@@ -46,7 +44,7 @@ class AStarFinder {
         openList.add(startNode);
         startNode.opened = true;
 
-        const startTime = process.hrtime.bigint();
+        const startTime = performance.now();
         let bestNode = startNode;
         let bestHeuristic = this.heuristic(Math.abs(startX - endX), Math.abs(startY - endY));
         let noProgressCounter = 0;
@@ -59,8 +57,8 @@ class AStarFinder {
                 return this._getBestPath(bestNode);
             }
 
-            const currentTime = process.hrtime.bigint();
-            const elapsedMs = Number(currentTime - startTime) / 1_000_000;
+            const currentTime = performance.now();
+            const elapsedMs = currentTime - startTime;
             if (elapsedMs > this.maxSearchTime) {
                 // console.log('A*: 达到最大搜索时间限制');
                 return this._getBestPath(bestNode);
@@ -232,7 +230,7 @@ class BreadthFirstFinder {
         visited.add(startNode);
         this.visitedNodes.add(startX + ',' + startY);
 
-        const startTime = process.hrtime.bigint();
+        const startTime = performance.now();
 
         while (queue.length > 0) {
             // 检查性能限制
@@ -241,8 +239,8 @@ class BreadthFirstFinder {
                 return [];
             }
 
-            const currentTime = process.hrtime.bigint();
-            const elapsedMs = Number(currentTime - startTime) / 1_000_000;
+            const currentTime = performance.now();
+            const elapsedMs = currentTime - startTime;
             if (elapsedMs > this.maxSearchTime) {
                 // console.log('BFS: 达到最大搜索时间限制');
                 return [];
@@ -319,10 +317,8 @@ class BestFirstFinder extends AStarFinder {
     }
 }
 
-// 导出模块
-module.exports = {
-    AStarFinder,
-    DijkstraFinder,
-    BreadthFirstFinder,
-    BestFirstFinder
-}; 
+// 添加到全局对象
+window.AStarFinder = AStarFinder;
+window.DijkstraFinder = DijkstraFinder;
+window.BreadthFirstFinder = BreadthFirstFinder;
+window.BestFirstFinder = BestFirstFinder;

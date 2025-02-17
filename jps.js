@@ -2,8 +2,6 @@
  * JPS（Jump Point Search）算法实现
  */
 
-const { Heuristic, Util, Heap } = require('./pathfinding-common.js');
-
 class JumpPointFinder {
     constructor(opt = {}) {
         this.heuristic = opt.heuristic || Heuristic.octile;
@@ -199,5 +197,5 @@ class JumpPointFinder {
     }
 }
 
-// 导出模块
-module.exports = { JumpPointFinder }; 
+// 添加到全局对象
+window.JumpPointFinder = JumpPointFinder;
