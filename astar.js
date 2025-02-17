@@ -1,5 +1,3 @@
-const { Heuristic, Util } = require('./pathfinding-common.js');
-
 /**
  * A* 寻路算法实现
  */
@@ -156,5 +154,5 @@ class AStarFinder {
     }
 }
 
-// 导出模块
-module.exports = AStarFinder; 
+// 添加到全局对象
+window.AStarFinder = AStarFinder;
